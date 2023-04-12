@@ -1,0 +1,84 @@
+apiVersion: v2
+name: my-java-app
+description: A Helm chart for deploying a Java application
+
+# Define global values that apply to all templates
+global:
+  # Configure the image registry and repository
+  image:
+    repository: my-docker-registry/my-java-app
+    tag: latest
+  # Configure the application port
+  port: 8080
+
+# Define the default values for this chart
+defaults:
+  # Configure the replica count
+  replicas: 1
+  # Configure the resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Define the templates for this chart
+# The templates are written in Go language
+# and can be used to generate Kubernetes manifests
+# based on the values defined in this chart
+# In this example, we have one template for the Deployment
+# and one for the Service
+# You can add more templates as needed
+---
+# Define the Deployment template
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}-deployment
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-container
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        ports:
+        - containerPort: {{ .Values.global.port }}
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx{{ .Values.resources.limits.memory }} -Xms{{ .Values.resources.requests.memory }}"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.global.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.global.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+---
+# Define the Service template
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}-service
+spec:
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+  - port: {{ .Values.global.port }}
+    targetPort: {{ .Values.global.port }}
